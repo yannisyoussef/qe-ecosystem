@@ -25,10 +25,11 @@ execution's failed outcome and never rewrites a child attempt's verdict:
 failed. It is session-scoped, may occur before or after the child attempts,
 and has no identity of its own beyond the event id and no history.
 
-Because a consumer that ignored the event would derive a passed execution
-from a failed one, it is not an ignorable addition. It starts compatibility
-line 0.2. Line 0.1 was never published, so it lives in the repository
-history only and nothing is maintained for it.
+Because a consumer that ignored the event would derive a passed run from
+a failed one, it is not an ignorable addition. Under ADR-0002 such a change
+is a major; before 1.0 the compatibility unit is `0.minor`, so the major
+bump is applied as a new line, 0.2. Line 0.1 was never published, so it
+lives in the repository history only and nothing is maintained for it.
 
 ## Options considered
 
@@ -46,7 +47,7 @@ history only and nothing is maintained for it.
 
 ## Consequences
 
-- Read models derive execution failure from failed attempts or scope
+- Read models derive a run's verdict from unexpected test outcomes or scope
   failures; no persisted run status field is added.
 - Attachments stay attached to attempts; container-level report entries
   remain an adapter limitation.
