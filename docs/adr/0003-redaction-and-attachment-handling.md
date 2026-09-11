@@ -1,6 +1,6 @@
 # ADR-0003: Producer-side redaction and out-of-band attachments
 
-Status: Accepted
+Status: Accepted (item 5 clarified by ADR-0004)
 Date: 2026-09-11
 
 ## Context

@@ -346,7 +346,8 @@ choice is made when the Karate adapter exists.
 ## 9. Security and privacy baseline
 
 These requirements apply from the first line of protocol, SDK, and platform
-code. See [ADR-0003](adr/0003-redaction-and-attachment-handling.md).
+code. See [ADR-0003](adr/0003-redaction-and-attachment-handling.md) and
+[ADR-0004](adr/0004-opaque-archive-attachments.md).
 
 Data handled: HTTP requests and responses, screenshots, browser traces,
 videos, console output, environment metadata, stack traces, logs, test data,
@@ -371,10 +372,11 @@ and credentials that test tools emit by accident. All of it is untrusted.
    project; storage-level deduplication across projects is not required
    and may be introduced only if it cannot reveal whether another project
    holds the same content or leak retention across projects.
-4. No archives are accepted in the first protocol version. If archive upload
-   is ever added, extraction must bound entry count, total size, and
-   compression ratio, reject symlinks and absolute or parent-relative
-   paths, and run outside the request thread.
+4. Archives are never extracted and never accepted as transport containers.
+   An opaque archive attachment (a Playwright trace, for example) is stored
+   and downloaded unchanged under the same hash, size, and media-type
+   rules as any binary attachment, and is download-only until an isolated
+   viewer is decided separately (ADR-0004).
 5. Rendering treats every producer string as text. Stack traces and logs are
    escaped, ANSI sequences are stripped, and lengths are capped. HTML
    attachments are never rendered in the application origin; they are
