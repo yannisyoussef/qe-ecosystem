@@ -16,3 +16,4 @@ a new one that links back.
 | [0003](0003-redaction-and-attachment-handling.md) | Producer-side redaction and out-of-band attachments | Accepted (item 5 clarified by 0004) |
 | [0004](0004-opaque-archive-attachments.md) | Opaque archive attachments are stored, never extracted | Accepted |
 | [0005](0005-scope-failures-are-protocol-events.md) | Non-test hierarchy failures are first-class protocol events and do not alter child test verdicts | Accepted |
+| [0006](0006-session-outcomes-are-protocol-facts.md) | Runner-level outcomes are first-class session facts and the run verdict stays derived | Accepted |

@@ -266,8 +266,9 @@ Rules:
 
 The protocol is designed in QE-001. This section fixes what QE-001 must
 satisfy so that the schema is not accidentally shaped by the first runner.
-See [ADR-0002](adr/0002-reporting-protocol-boundary.md) and
-[ADR-0005](adr/0005-scope-failures-are-protocol-events.md). The current
+See [ADR-0002](adr/0002-reporting-protocol-boundary.md),
+[ADR-0005](adr/0005-scope-failures-are-protocol-events.md), and
+[ADR-0006](adr/0006-session-outcomes-are-protocol-facts.md). The current
 compatibility line is stated by the protocol documentation in `qe-report`.
 
 The protocol must represent runs from JUnit 5, Rest Assured under JUnit,
@@ -291,6 +292,7 @@ Minimum canonical concepts:
 | Attachment | Metadata for a screenshot, video, trace, HTTP exchange, log, or text, scoped to an attempt or step | Bytes never travel inside events; see section 9 |
 | Failure | Message, type, structured or raw stack trace, expected and actual when available, cause chain | Redacted by the producer before serialization |
 | Scope failure | A failure of a non-test node of the runner hierarchy (class, suite, file, module) | Recorded as its own event with the scope's path; it fails the run without changing any attempt's verdict (ADR-0005) |
+| Session outcome | The aggregate outcome a runner reports for its own invocation (passed, failed, inconclusive), with its raw word and any invocation-level failures | Optional on the event that closes the session; a runner without one emits nothing and the verdict is derived from attempts and scope failures (ADR-0006) |
 | Tags and labels | Free tags (JUnit `@Tag`, Playwright `@tag`, Cucumber tags) and key-value labels with a small reserved key set | |
 | Environment, executor, source, producer | System under test, CI context, VCS state, and the adapter and runner versions | Run-level, with an attempt-level override only where a real runner needs it |
 
