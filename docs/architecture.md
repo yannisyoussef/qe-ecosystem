@@ -293,6 +293,7 @@ Minimum canonical concepts:
 | Failure | Message, type, structured or raw stack trace, expected and actual when available, cause chain | Redacted by the producer before serialization |
 | Scope failure | A failure of a non-test node of the runner hierarchy (class, suite, file, module) | Recorded as its own event with the scope's path; it fails the run without changing any attempt's verdict (ADR-0005) |
 | Session outcome | The aggregate outcome a runner reports for its own invocation (passed, failed, inconclusive), with its raw word and any invocation-level failures | Optional on the event that closes the session; a runner without one emits nothing and the verdict is derived from attempts and scope failures (ADR-0006) |
+| Output root and run directory | The directory an adapter is configured with is an output root; each run lives in `runs/<run directory>` below it, named from the run id (readable stem plus a short hash) | One physical run directory holds one logical run; the name is a locator and the `runId` inside the events stays authoritative; validation and ingestion address one run directory |
 | Tags and labels | Free tags (JUnit `@Tag`, Playwright `@tag`, Cucumber tags) and key-value labels with a small reserved key set | |
 | Environment, executor, source, producer | System under test, CI context, VCS state, and the adapter and runner versions | Run-level, with an attempt-level override only where a real runner needs it |
 
