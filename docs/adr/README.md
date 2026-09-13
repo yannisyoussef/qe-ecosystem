@@ -18,3 +18,4 @@ a new one that links back.
 | [0005](0005-scope-failures-are-protocol-events.md) | Non-test hierarchy failures are first-class protocol events and do not alter child test verdicts | Accepted |
 | [0006](0006-session-outcomes-are-protocol-facts.md) | Runner-level outcomes are first-class session facts and the run verdict stays derived | Accepted |
 | [0007](0007-project-is-ingestion-context.md) | The project is ingestion context, and the run key is (project, run id) | Accepted |
+| [0008](0008-postgresql-run-archive.md) | PostgreSQL archives complete validated runs as their original protocol source | Accepted |
