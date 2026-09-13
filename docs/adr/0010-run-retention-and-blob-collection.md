@@ -43,13 +43,47 @@ blob relations.
 Deleting a run deletes its source lines, its run-to-blob relations, and
 its retention fact by cascade. It does not cascade into the blob catalog.
 A blob is deleted only when no run-to-blob row anywhere in the database
-references its hash, counted globally and never per project; the object
-is re-verified and unlinked first and its catalog row removed second,
-under a final check that nothing began referencing it. Objects the
-catalog never knew are found by enumerating the blob store itself,
-because no database query can see them. A corrupt object, an unsafe
-entry, or one whose size disagrees with the catalog is reported and left
-for an operator.
+references its hash, counted globally and never per project. The catalog
+row goes first, deleted under a final guard in the statement itself:
+
+```sql
+DELETE FROM qe_blobs
+ WHERE sha256 = $1
+   AND NOT EXISTS (SELECT 1 FROM qe_run_blobs WHERE sha256 = qe_blobs.sha256)
+```
+
+and the verified object is removed only when that statement deleted a
+row. Objects the catalog never knew are found by enumerating the blob
+store itself, because no database query can see them. A corrupt object,
+an unsafe entry, or one whose size disagrees with the catalog is reported
+and left for an operator; when such an object was catalogued, its row is
+already gone, so the catalog stops claiming durable content it cannot
+produce and the object waits as an uncatalogued orphan.
+
+The order is chosen for what each failure leaves behind. The guard runs
+while destructive maintenance holds the exclusive lease, so no ingestion
+can create a reference between the check and the deletion:
+
+| What fails | Catalog row | Object | Meaning |
+|---|---|---|---|
+| The row deletion | remains | remains | Nothing happened; the next pass retries. |
+| Nothing | gone | gone | The blob is fully reclaimed. |
+| The object removal | gone | remains | An uncatalogued orphan the enumeration collects later. |
+
+The third state is the price of the ordering and it is a safe one: the
+row was deleted only because no run referenced the hash, so no reader
+loses anything, and the object is exactly the kind of stray the orphan
+pass exists for. Removing the object first would make the mirror image
+possible instead, which is not safe: a guard that then declined to delete
+the row would leave a catalogued hash, reachable by a run, whose bytes
+maintenance had already unlinked. Maintenance must never be able to
+produce
+
+```
+committed run-to-blob relation -> catalog says the blob exists -> bytes already deleted
+```
+
+so the ordering that can only fail the other way is the one that stands.
 
 An object the catalog never knew is collected only when it is older than
 a cutoff the caller states, as a temporary file is: a blob published a
@@ -121,8 +155,12 @@ mutates nothing. No scheduler exists in the persistence packages.
   records rather than a fabricated expiry.
 - Retention is manual until an operations layer calls it. Until then
   expired runs simply remain, which is visible in a preview.
-- An object may be removed while its catalog row survives a failure; the
-  next pass finishes the job. The opposite order is never used.
+- A catalog row may be deleted while its object survives a failure. The
+  object is then an uncatalogued orphan and the enumeration pass collects
+  it; nothing a reader can reach is affected, because the row was deleted
+  only after the guard proved no run referenced the hash. The opposite
+  order, which could leave a referenced catalog row without its bytes, is
+  never used.
 - The read model and the protocol remain unaware of retention, and
   history and flakiness need no cleaning because they were never stored.
 - `asOf` is the caller's authority and is not compared with any clock: a
