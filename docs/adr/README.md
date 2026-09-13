@@ -21,3 +21,4 @@ a new one that links back.
 | [0008](0008-postgresql-run-archive.md) | PostgreSQL archives complete validated runs as their original protocol source | Accepted (attachment bytes made durable by 0009) |
 | [0009](0009-durable-attachment-blobs.md) | Attachment bytes are durable content-addressed blobs on a local filesystem | Accepted (expiry and collection added by 0010) |
 | [0010](0010-run-retention-and-blob-collection.md) | Runs carry an explicit expiry, and globally deduplicated blobs are collected only when no run references them | Accepted |
+| [0011](0011-postgresql-query-indexes.md) | Cross-run questions are answered from rebuildable PostgreSQL indexes, one run from its own source | Accepted |
