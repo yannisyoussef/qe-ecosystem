@@ -197,7 +197,7 @@ Dependabot keeps them current.
 |---|---|---|
 | Platform stack | Java 25, Spring Boot 4.x | Same stack as KaaS and TestInbox; the reporting platform is a modular monolith, not services |
 | Database | PostgreSQL, one major pinned in Compose, CI, and Testcontainers (16, the major the first run archive is exercised against) | Relational data plus `jsonb` for metadata; both existing products use it |
-| Artifact bytes | Behind one storage boundary. First implementation: local filesystem under server-generated keys, with the SHA-256 hash kept as metadata. S3-compatible implementation when a non-local deployment exists | Nothing before the first deployment needs object storage; the boundary makes the swap an implementation change |
+| Artifact bytes | Behind one storage boundary. First implementation (in place): a local filesystem content-addressed store under server-generated keys derived from the SHA-256, which is the blob identity (ADR-0009). S3-compatible implementation when a non-local deployment exists | Nothing before the first deployment needs object storage; the boundary makes the swap an implementation change |
 | Local development | `docker compose up` for PostgreSQL only; the platform runs from Gradle; integration tests use Testcontainers and never a shared database | One command to start; no hidden shared state |
 | Container image | Spring Boot buildpacks (`bootBuildImage`), published to GHCR on release | No Dockerfile to maintain; SBOM comes with it |
 
@@ -295,7 +295,8 @@ Minimum canonical concepts:
 | Session outcome | The aggregate outcome a runner reports for its own invocation (passed, failed, inconclusive), with its raw word and any invocation-level failures | Optional on the event that closes the session; a runner without one emits nothing and the verdict is derived from attempts and scope failures (ADR-0006) |
 | Output root and run directory | The directory an adapter is configured with is an output root; each run lives in `runs/<run directory>` below it, named from the run id (readable stem plus a short hash) | One physical run directory holds one logical run; the name is a locator and the `runId` inside the events stays authoritative; validation and ingestion address one run directory |
 | Project | The partition a platform ingests a run into: an opaque key supplied by whoever ingests, never carried by events or derived from them | The run key is `(project, run id)` and the history key `(project, runner name, historical id)`; adapters and the protocol know nothing of it (ADR-0007) |
-| Durable run archive | Complete, validator-valid runs stored in PostgreSQL as their original protocol JSON lines under `(project, run id)`, with a content fingerprint and ingestion metadata | The raw lines are the only durable truth; projections, histories, flakiness, and the blob catalog are rebuilt through the validator and projector; same content is idempotent, different content under one identity is refused; attachment bytes are not yet durable (ADR-0008) |
+| Durable run archive | Complete, validator-valid runs stored in PostgreSQL as their original protocol JSON lines under `(project, run id)`, with a content fingerprint and ingestion metadata | The raw lines are the only durable truth; projections, histories, flakiness, and the blob catalog are rebuilt through the validator and projector; same content is idempotent, different content under one identity is refused (ADR-0008) |
+| Durable attachment bytes | The bytes an attachment event names, stored once under their full SHA-256 in an immutable content-addressed blob store, with a global catalog row and a per-run relation in PostgreSQL | Blob identity is the hash alone; the same bytes across runs and projects are one object; a run commits only after its blobs are durable, and full verification re-reads the bytes; the run archive, not the blob store, records who referenced what (ADR-0009) |
 | Tags and labels | Free tags (JUnit `@Tag`, Playwright `@tag`, Cucumber tags) and key-value labels with a small reserved key set | |
 | Environment, executor, source, producer | System under test, CI context, VCS state, and the adapter and runner versions | Run-level, with an attempt-level override only where a real runner needs it |
 
@@ -378,10 +379,11 @@ and credentials that test tools emit by accident. All of it is untrusted.
    types by sniffing, caps size per attachment and per run, and stores
    under server-generated keys. Producer-supplied names and paths are
    display strings only and are never used to locate anything on the
-   server. Deduplication visible in the logical model is scoped to a
-   project; storage-level deduplication across projects is not required
-   and may be introduced only if it cannot reveal whether another project
-   holds the same content or leak retention across projects.
+   server. Storage-level deduplication is global: the same bytes are one
+   blob whatever project references them (ADR-0009). Nothing may
+   therefore expose whether a blob exists by hash alone without a run
+   reference the caller is allowed to see, and retention must
+   reference-count blobs across projects before deleting any.
 4. Archives are never extracted and never accepted as transport containers.
    An opaque archive attachment (a Playwright trace, for example) is stored
    and downloaded unchanged under the same hash, size, and media-type
@@ -398,8 +400,8 @@ and credentials that test tools emit by accident. All of it is untrusted.
 7. Request bodies, batch sizes, events per run, and attachments per run are
    capped. Text over the limit is truncated with a marker; binary over the
    limit is rejected with a reason.
-8. Every run carries an expiry from day one and deletion cascades to blobs,
-   even before a retention job exists.
+8. Every run carries an expiry from day one and deletion cascades to the
+   blobs no other run references, even before a retention job exists.
 9. Every stored record carries a project identifier from day one so that
    authentication and tenancy are additive. Until authenticated producer
    identity and authorization exist, `projectId` is a partitioning
