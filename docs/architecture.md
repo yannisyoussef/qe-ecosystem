@@ -297,6 +297,7 @@ Minimum canonical concepts:
 | Project | The partition a platform ingests a run into: an opaque key supplied by whoever ingests, never carried by events or derived from them | The run key is `(project, run id)` and the history key `(project, runner name, historical id)`; adapters and the protocol know nothing of it (ADR-0007) |
 | Durable run archive | Complete, validator-valid runs stored in PostgreSQL as their original protocol JSON lines under `(project, run id)`, with a content fingerprint and ingestion metadata | The raw lines are the only durable truth; projections, histories, flakiness, and the blob catalog are rebuilt through the validator and projector; same content is idempotent, different content under one identity is refused (ADR-0008) |
 | Durable attachment bytes | The bytes an attachment event names, stored once under their full SHA-256 in an immutable content-addressed blob store, with a global catalog row and a per-run relation in PostgreSQL | Blob identity is the hash alone; the same bytes across runs and projects are one object; a run commits only after its blobs are durable, and full verification re-reads the bytes; the run archive, not the blob store, records who referenced what (ADR-0009) |
+| Run expiry and retention | An absolute instant supplied at ingestion, stored beside the run, and enforced only by explicit bounded maintenance that deletes expired runs and reclaims bytes no run anywhere references | Expiry is ingestion context like the project, never derived from events or ingestion time, and never moved by re-ingestion; run deletion cascades source lines, blob relations, and the expiry itself, never the global blob catalog; ingestion and destructive maintenance are serialized by one shared/exclusive advisory lock; nothing is scheduled (ADR-0010) |
 | Tags and labels | Free tags (JUnit `@Tag`, Playwright `@tag`, Cucumber tags) and key-value labels with a small reserved key set | |
 | Environment, executor, source, producer | System under test, CI context, VCS state, and the adapter and runner versions | Run-level, with an attempt-level override only where a real runner needs it |
 
@@ -400,8 +401,15 @@ and credentials that test tools emit by accident. All of it is untrusted.
 7. Request bodies, batch sizes, events per run, and attachments per run are
    capped. Text over the limit is truncated with a marker; binary over the
    limit is rejected with a reason.
-8. Every run carries an expiry from day one and deletion cascades to the
-   blobs no other run references, even before a retention job exists.
+8. Every run ingested into the durable archive carries an explicit expiry
+   supplied by whoever ingests it. Deleting a run cascades to its source
+   and its blob references; the bytes themselves are reclaimed by the same
+   explicit maintenance pass once no run anywhere references them, never
+   by a foreign-key cascade. The invariant is enforced by the writer from
+   ADR-0010 (migration 3); runs archived before it are identifiable
+   retention-unmanaged records, never deleted by guesswork, and gain the
+   fact only when re-ingested. A retention job is invoked explicitly;
+   none runs by itself yet.
 9. Every stored record carries a project identifier from day one so that
    authentication and tenancy are additive. Until authenticated producer
    identity and authorization exist, `projectId` is a partitioning

@@ -19,4 +19,5 @@ a new one that links back.
 | [0006](0006-session-outcomes-are-protocol-facts.md) | Runner-level outcomes are first-class session facts and the run verdict stays derived | Accepted |
 | [0007](0007-project-is-ingestion-context.md) | The project is ingestion context, and the run key is (project, run id) | Accepted |
 | [0008](0008-postgresql-run-archive.md) | PostgreSQL archives complete validated runs as their original protocol source | Accepted (attachment bytes made durable by 0009) |
-| [0009](0009-durable-attachment-blobs.md) | Attachment bytes are durable content-addressed blobs on a local filesystem | Accepted |
+| [0009](0009-durable-attachment-blobs.md) | Attachment bytes are durable content-addressed blobs on a local filesystem | Accepted (expiry and collection added by 0010) |
+| [0010](0010-run-retention-and-blob-collection.md) | Runs carry an explicit expiry, and globally deduplicated blobs are collected only when no run references them | Accepted |
