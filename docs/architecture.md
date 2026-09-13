@@ -196,7 +196,7 @@ Dependabot keeps them current.
 | Concern | Decision | Why |
 |---|---|---|
 | Platform stack | Java 25, Spring Boot 4.x | Same stack as KaaS and TestInbox; the reporting platform is a modular monolith, not services |
-| Database | PostgreSQL, one major pinned in Compose, CI, and Testcontainers (17 to start) | Relational data plus `jsonb` for labels and metadata; both existing products use it |
+| Database | PostgreSQL, one major pinned in Compose, CI, and Testcontainers (16, the major the first run archive is exercised against) | Relational data plus `jsonb` for metadata; both existing products use it |
 | Artifact bytes | Behind one storage boundary. First implementation: local filesystem under server-generated keys, with the SHA-256 hash kept as metadata. S3-compatible implementation when a non-local deployment exists | Nothing before the first deployment needs object storage; the boundary makes the swap an implementation change |
 | Local development | `docker compose up` for PostgreSQL only; the platform runs from Gradle; integration tests use Testcontainers and never a shared database | One command to start; no hidden shared state |
 | Container image | Spring Boot buildpacks (`bootBuildImage`), published to GHCR on release | No Dockerfile to maintain; SBOM comes with it |
