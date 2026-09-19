@@ -2,6 +2,7 @@
 
 Status: Accepted
 Date: 2026-09-13
+Amended: 2026-09-19 (history order, canonical-source repair, project id contract)
 
 ## Context
 
@@ -46,15 +47,40 @@ calls, so the two cannot drift apart. The stored `flaky` is the
 projector's own boolean; SQL counts those booleans and never decides what
 flakiness is.
 
-The history key stays `(project, runner name, historical id)`, and the
-history order stays the in-memory order: producer instant, then run id,
-then execution id. The instant is stored as the in-memory comparator
-reads it, to the millisecond, computed before it is stored rather than
-parsed by the database; the two tie-breakers are protocol identifiers,
-which are printable ASCII, so the `COLLATE "C"` byte order declared on
-them is exactly code-unit order. Both models read a producer's clock
-through one shared function, so a clock that no obvious parse turns into
-an instant, such as a leap second, cannot order differently in the two.
+The history key stays `(project, runner name, historical id)`. History
+order is the producer timestamp's position, then run id, then execution
+id: a presentation order, not global chronology. The two tie-breakers
+are protocol identifiers, which are printable ASCII, so the
+`COLLATE "C"` byte order declared on them is exactly code-unit order.
+
+Building a durable index exposed a gap in the in-memory order it was to
+reproduce. That comparator subtracted `Date.parse` results, and
+`Date.parse` cannot read a leap second, which the protocol's timestamp
+schema admits as the last second of a UTC day: such a timestamp got
+`NaN`, which is no order at all, and no scalar a database can store.
+Reading `23:59:60` as `23:59:59` plus one second instead, as a first
+attempt did, collides with the `00:00:00` that follows, so the run ids
+decide. QE-008 therefore hardens the read model rather than copying it.
+One primitive in the read-model package, `historyInstant`, defines the
+position, and the in-memory history, the index writer, and PostgreSQL's
+paging all use it:
+
+- an ordinary timestamp is its instant to the millisecond as
+  `Date.parse` reads it, so every ordinary history keeps exactly the
+  order it had;
+- a leap second sorts after every instant of the second before it and
+  before the `00:00:00` after it, and by its own milliseconds among
+  leap seconds. One `timestamptz` cannot hold that apart from the next
+  second, so the index stores a pair: the instant, which for a leap
+  second is the last millisecond of `23:59:59`, and a leap place, 0 for
+  an ordinary timestamp and 1 plus the millisecond inside a leap second;
+- a string the validator refuses has no position and is refused rather
+  than mapped to an arbitrary one. None can be archived, so none can
+  reach the index.
+
+This is read-model ordering semantics, not wire semantics: the protocol
+is unchanged.
+
 The index is keyed by a digest of the runner name and the historical id
 rather than by the names: the protocol bounds each at 512 characters,
 which in multi-byte text is more than an index key can hold, and the
@@ -69,9 +95,25 @@ only when both match. A project with any missing or stale run refuses
 answering a question about part of itself.
 
 Runs archived by the current writer are indexed in their own archive
-transaction, so new data is queryable immediately. Everything else is
-brought in by an explicit, bounded rebuild that reads the source, never a
-stale index, holds the shared maintenance lease so retention cannot
+transaction, so new data is queryable immediately. An already archived
+run is different. The content fingerprint deliberately ignores identical
+duplicate lines (ADR-0008), so a later, idempotent re-ingestion can
+offer the same run in a different physical form with different validator
+facts, such as its duplicate count. When such a re-ingestion finds the
+run's index missing or stale, it repairs it from the archive's own
+stored source, under the run's row lock, and never from what it was
+offered:
+
+> An already-present run's query index is always derived from the
+> archive's stored raw source, never from an idempotent physical
+> representation offered later.
+
+An archive whose own source no longer replays fails the re-ingestion
+loudly instead of being indexed from the offered copy.
+
+Runs archived before the indexes existed, and any whose index is missing
+or stale, are brought in by an explicit, bounded rebuild that reads the
+source, never a stale index, holds the shared maintenance lease so retention cannot
 delete a run underneath it, and replaces one run's derived rows in one
 transaction under a row lock. Nothing is scheduled. Retention needs to
 know nothing about any of this: the derived tables cascade from the run.
@@ -105,8 +147,22 @@ know nothing about any of this: the derived tables cascade from the run.
    are not available. Rejected.
 9. Letting a failure to derive an index refuse the archive. Derived
    state would then decide what may be stored, which inverts the whole
-   arrangement. Rejected: the derivation is total.
-10. Relational tables for sessions, attempts, steps, scope failures, and
+   arrangement. Rejected: the derivation is total over everything the
+   validator accepts, which is everything that can be archived.
+10. Repair an existing run's index from the representation a
+   re-ingestion offers, because its fingerprint matches. The fingerprint
+   is semantic identity, not physical identity; the index would then
+   describe a source that is not the archive. Rejected.
+11. Keep one `timestamptz` per occurrence, reading a leap second as the
+   next second, and give any unreadable timestamp the earliest instant.
+   The first collides with the following second and lets identifiers
+   decide chronology; the second invents chronology for strings no
+   validator accepts. Rejected for an explicit pair and a refusal.
+12. Bound the project id inside the query surface. ADR-0007 defines it as
+   opaque and non-empty, and a query-only limit would let the store
+   archive a project the queries refuse. Rejected: one contract
+   everywhere.
+13. Relational tables for sessions, attempts, steps, scope failures, and
    attachments. A relational rewrite of the projected run, and a second
    place its shape is defined. Rejected: one run replays.
 
@@ -120,11 +176,16 @@ know nothing about any of this: the derived tables cascade from the run.
   questions. Operators see exactly what is missing and rebuild it.
 - Deleting a run deletes its derived rows by cascade, and the surviving
   project stays complete with no orphaned occurrence.
-- Ordering is provably the in-memory ordering, because the instant is
-  stored as read and the collation is declared rather than inherited.
-- Nothing derived can refuse an archive. A run the indexer cannot read a
-  clock from is still stored, still replayable, and still indexed; the
-  index is a consequence of the archive and never a condition of it.
+- Ordering is provably the in-memory ordering, because both come from
+  one primitive, the position is stored as it computes it, and the
+  collation is declared rather than inherited. Ordinary timestamps keep
+  their previous order; the leap second's place is deliberate.
+- Nothing derived can refuse an archive: every archived run is
+  validator-valid, and every validator-valid timestamp has a position.
+  The index is a consequence of the archive and never a condition of it.
+- An existing run's index always describes its archived source, whatever
+  physical form a later re-ingestion offers.
+- The query surface takes the same project id the store archives under.
 - There is still no HTTP, no authentication, and no search: display
   names, tags, labels, failure text, time windows, and trends are not
   queryable, and would need evidence from a real interface first.
