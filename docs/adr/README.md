@@ -23,3 +23,4 @@ a new one that links back.
 | [0010](0010-run-retention-and-blob-collection.md) | Runs carry an explicit expiry, and globally deduplicated blobs are collected only when no run references them | Accepted |
 | [0011](0011-postgresql-query-indexes.md) | Cross-run questions are answered from rebuildable PostgreSQL indexes, one run from its own source | Accepted |
 | [0012](0012-authenticated-http-transport.md) | An authenticated HTTP transport exposes the archive and its queries, and the credential decides the project | Accepted |
+| [0013](0013-producers-upload-completed-run-directories.md) | Producers upload completed run directories; HTTP is not an event sink | Accepted |
