@@ -49,11 +49,24 @@ order, how large each one is, and the exact expiry to send. Every attempt
 re-opens exactly those files and checks that each is still the same file,
 by type, size, modification time, device, and inode, before and after its
 bytes are streamed. A run directory that changes ends the upload rather
-than mixing two versions of a run into one archive. Attachments are
-uploaded only under the hash their name claims, verified against their
-bytes: an uploader may not repair a producer's directory into a different,
-valid remote run. Nothing is followed through a symbolic link, and nothing
-is buffered whole.
+than mixing two versions of a run into one archive. An attachment is held
+to more than that, because its name is a statement about its bytes: its
+SHA-256 is recomputed from the bytes each attempt actually streams and
+compared before the part is closed, so bytes replaced by different bytes
+of the same length, under the same inode, with the modification time put
+back, end the upload with an incomplete request rather than being
+archived. An uploader may not repair a producer's directory into a
+different, valid remote run. Nothing is followed through a symbolic link,
+and nothing is buffered whole: the digest comes from the same pass that
+feeds the request.
+
+A producer states an expiry through one parser, which takes exactly the
+operational-instant grammar API v1 takes (ADR-0012): RFC 3339, an explicit
+offset, seconds 00 to 59, and at most millisecond precision. The command,
+the Playwright reporter, and a library caller all use it, so no producer
+sends a deadline the service would refuse or would have to read
+differently, and an unreadable one stops the upload instead of being
+replaced by a relative retention nobody asked for.
 
 Retries exist because `POST /v1/runs` is idempotent for the same run. A
 producer that loses the answer to an attempt the service already archived
@@ -124,7 +137,10 @@ deletes the producer's output. The service's API v1 is unchanged.
   anywhere that can read the directory, including another machine.
 - Because the uploader checks that attachments hash to their names, a
   producer directory that is corrupt is refused locally instead of
-  becoming a different remote run.
+  becoming a different remote run. The two moments stay apart: bytes that
+  never matched their name are a broken producer directory, and bytes that
+  matched when the plan was made and no longer do are a directory that
+  changed underneath an upload.
 - The archive's semantics are untouched: an upload and a direct
   filesystem ingestion of the same run are the same run, and canonical
   source repair (ADR-0011) still derives from what was archived first.
