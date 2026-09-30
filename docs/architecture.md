@@ -152,7 +152,7 @@ of an artifact and is a major version after it.
 | Maven artifact | `qe-<product>-<module>` | `qe-report-protocol`, `qe-report-sdk`, `qe-report-junit-platform`, `qe-report-karate`, `qe-bom` |
 | Java package | `io.github.yannisyoussef.qe.<product>.<module>` | `io.github.yannisyoussef.qe.report.junitplatform` |
 | Java internal package | `...<module>.internal` | excluded from compatibility guarantees |
-| npm scope and package | `@<scope>/qe-<product>-<module>` | `@<scope>/qe-report-playwright`; scope deferred until the first npm publication, see section 13 |
+| npm package | `qe-<product>-<module>`, unscoped | `qe-report-playwright`. Decided in ADR-0015: the five public names were verified unowned on the registry, so no scope is needed and none is used. A scope would have been required only to work around a name collision |
 | Protocol | `qe-report-protocol`, versioned separately from every binding | schema `$id` base URL decided in QE-001 |
 | Adapter | `qe-report-<runner>` | one artifact per runner family, named for the extension boundary it observes (`junit-platform`, not `junit5`), never per tool |
 | Container image | `ghcr.io/yannisyoussef/qe-<product>` | `ghcr.io/yannisyoussef/qe-report` |
@@ -485,7 +485,7 @@ Milestones are named, not dated. Each one ends with something that runs.
 
 | Decision | Why deferred | Decide by |
 |---|---|---|
-| npm scope | Must be a scope the owner controls; confirmed at publication time. The license (Apache-2.0) and the Maven group ID (`io.github.yannisyoussef`) are decided | First npm publication |
+| ~~npm scope~~ | Decided in ADR-0015: the public packages are unscoped, because the five names are unowned. What remains is account configuration rather than a decision: npm publishing credentials and Maven Central namespace verification are release preconditions, listed in qe-report's `RELEASING.md` | Closed |
 | Protocol schema `$id` base URL | Follows the naming decision | QE-001 |
 | Protocol detail: identity derivation, status set, envelope | QE-001 | QE-001 |
 | JUnit adapter supported consumer range | Needs the adapter to exist to test it | QE-002 |

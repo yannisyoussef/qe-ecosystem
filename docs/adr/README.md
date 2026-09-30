@@ -25,3 +25,4 @@ a new one that links back.
 | [0012](0012-authenticated-http-transport.md) | An authenticated HTTP transport exposes the archive and its queries, and the credential decides the project | Accepted |
 | [0013](0013-producers-upload-completed-run-directories.md) | Producers upload completed run directories; HTTP is not an event sink | Accepted |
 | [0014](0014-reference-deployment.md) | qe-report v1 is deployed as a single instance with explicit operations | Accepted |
+| [0015](0015-lockstep-product-releases.md) | qe-report v1 uses lockstep product releases over independent protocol, API, and storage compatibility lines | Accepted |

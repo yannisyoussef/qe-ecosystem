@@ -175,7 +175,10 @@ adds no human identity, no session, and no browser surface.
 
 ## Deferred
 
-Registry publication and release artefacts; metrics and tracing; a
+Registry publication and release artefacts are now decided in ADR-0015, which
+this paragraph deferred them to.
+
+Still deferred: metrics and tracing; a
 scheduler for the maintenance commands; object storage for attachment
 bytes; PostgreSQL replication, failover, and horizontal application
 scaling; automatic certificate issuance; and any model of human identity.
