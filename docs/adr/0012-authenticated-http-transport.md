@@ -165,7 +165,11 @@ server registers, committed, and checked in CI against generation.
 
 ## Deferred
 
-Users, organisations, and OIDC; any role beyond the two scopes; rate
-limiting and quotas, which belong to the deployment edge; Range requests
-for attachments; search; stale staging cleanup; and any transport other
-than HTTP.
+Users, organisations, and OIDC; any role beyond the two scopes; quotas;
+Range requests for attachments; search; and any transport other than HTTP.
+
+Two of the items this ADR deferred have since been decided in ADR-0014,
+which is the deployment they were waiting for: rate and connection limiting
+at the edge, and cleanup of a staging directory a killed server left
+behind, which is an operator command that requires the instance owning the
+root to be stopped.

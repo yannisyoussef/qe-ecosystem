@@ -24,3 +24,4 @@ a new one that links back.
 | [0011](0011-postgresql-query-indexes.md) | Cross-run questions are answered from rebuildable PostgreSQL indexes, one run from its own source | Accepted |
 | [0012](0012-authenticated-http-transport.md) | An authenticated HTTP transport exposes the archive and its queries, and the credential decides the project | Accepted |
 | [0013](0013-producers-upload-completed-run-directories.md) | Producers upload completed run directories; HTTP is not an event sink | Accepted |
+| [0014](0014-reference-deployment.md) | qe-report v1 is deployed as a single instance with explicit operations | Accepted |
